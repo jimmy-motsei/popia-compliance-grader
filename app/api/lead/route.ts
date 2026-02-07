@@ -1,9 +1,11 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { isNeonConfigured } from "@/lib/db/neon";
+import { sendReportEmail } from "@/lib/email/resend";
 import type { AssessmentResult, ScanResult } from "@/types/assessment";
 import { syncLeadToHubSpot } from "@/lib/integrations/hubspot";
-import { insertLead } from "@/lib/leads/store";
+import { insertLead, updateLeadDelivery } from "@/lib/leads/store";
+import { createSignedReportToken } from "@/lib/security/report-token";
 
 interface LeadRequest {
   name?: string;
@@ -49,14 +51,35 @@ export async function POST(req: Request) {
       assessment: body.assessment,
       hubspotStatus: hubspot.status,
       hubspotContactId: hubspot.contactId,
-      hubspotError: hubspot.error
+      hubspotError: hubspot.error,
+      emailStatus: "not_configured"
+    });
+
+    const token = createSignedReportToken(lead.id);
+    const reportUrl = token ? `/api/report/${lead.id}?token=${encodeURIComponent(token)}` : `/api/report/${lead.id}`;
+    const origin = new URL(req.url).origin;
+    const email = await sendReportEmail({
+      to: lead.email,
+      name: lead.name,
+      companyName: lead.companyName,
+      websiteUrl: lead.websiteUrl,
+      assessment: lead.assessment,
+      reportUrl: `${origin}${reportUrl}`
+    });
+    await updateLeadDelivery(lead.id, {
+      emailStatus: email.status,
+      emailId: email.emailId,
+      emailError: email.error
     });
 
     return NextResponse.json({
       success: true,
       leadId: lead.id,
-      reportUrl: `/api/report/${lead.id}`,
+      reportUrl,
       storageBackend: isNeonConfigured() ? "neon" : "file",
+      emailStatus: email.status,
+      emailId: email.emailId,
+      emailError: email.error,
       hubspotStatus: lead.hubspotStatus,
       hubspotContactId: lead.hubspotContactId,
       hubspotError: lead.hubspotError

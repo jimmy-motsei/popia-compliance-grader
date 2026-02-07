@@ -108,6 +108,17 @@ export default function HomePage() {
         );
       }
       setReportUrl(data.reportUrl);
+
+      if (data.emailStatus === "sent") {
+        setLeadMessage((prev) => `${prev ?? "Lead captured."} Report email sent successfully.`);
+      } else if (data.emailStatus === "not_configured") {
+        setLeadMessage((prev) => `${prev ?? "Lead captured."} Email delivery is not configured yet.`);
+      } else {
+        setLeadMessage((prev) => `${prev ?? "Lead captured."} Email delivery failed.`);
+        if (data.emailError) {
+          setLeadError(`Email error: ${data.emailError}`);
+        }
+      }
     } catch {
       setLeadError("Unexpected error while submitting lead.");
     } finally {

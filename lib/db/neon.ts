@@ -34,9 +34,16 @@ export async function ensureNeonSchema(): Promise<void> {
       scan JSONB NOT NULL,
       hubspot_status TEXT NOT NULL,
       hubspot_contact_id TEXT,
-      hubspot_error TEXT
+      hubspot_error TEXT,
+      email_status TEXT NOT NULL DEFAULT 'not_configured',
+      email_id TEXT,
+      email_error TEXT
     );
   `;
+
+  await sql`ALTER TABLE popia_assessments ADD COLUMN IF NOT EXISTS email_status TEXT NOT NULL DEFAULT 'not_configured';`;
+  await sql`ALTER TABLE popia_assessments ADD COLUMN IF NOT EXISTS email_id TEXT;`;
+  await sql`ALTER TABLE popia_assessments ADD COLUMN IF NOT EXISTS email_error TEXT;`;
 
   await sql`CREATE INDEX IF NOT EXISTS idx_popia_assessments_created_at ON popia_assessments (created_at DESC);`;
   await sql`CREATE INDEX IF NOT EXISTS idx_popia_assessments_email ON popia_assessments (email);`;

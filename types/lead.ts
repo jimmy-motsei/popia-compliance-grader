@@ -14,6 +14,9 @@ export interface LeadSubmissionResponse {
   leadId: string;
   reportUrl: string;
   storageBackend: "neon" | "file";
+  emailStatus: "not_configured" | "sent" | "failed";
+  emailId?: string;
+  emailError?: string;
   hubspotStatus: "not_configured" | "synced" | "failed";
   hubspotContactId?: string;
   hubspotError?: string;

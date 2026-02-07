@@ -15,6 +15,9 @@ export interface LeadRecord {
   hubspotStatus: "not_configured" | "synced" | "failed";
   hubspotContactId?: string;
   hubspotError?: string;
+  emailStatus: "not_configured" | "sent" | "failed";
+  emailId?: string;
+  emailError?: string;
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -34,6 +37,16 @@ interface DbLeadRow {
   hubspot_status: "not_configured" | "synced" | "failed";
   hubspot_contact_id: string | null;
   hubspot_error: string | null;
+  email_status: "not_configured" | "sent" | "failed";
+  email_id: string | null;
+  email_error: string | null;
+}
+
+function normalizeLeadRecord(lead: LeadRecord): LeadRecord {
+  return {
+    ...lead,
+    emailStatus: lead.emailStatus ?? "not_configured"
+  };
 }
 
 async function ensureDataFile(): Promise<void> {
@@ -52,7 +65,7 @@ async function readLeads(): Promise<LeadRecord[]> {
 
   try {
     const parsed = JSON.parse(raw) as LeadRecord[];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map((lead) => normalizeLeadRecord(lead)) : [];
   } catch {
     return [];
   }
@@ -69,7 +82,7 @@ export async function insertLead(lead: LeadRecord): Promise<LeadRecord> {
     const sql = neonSql();
     await sql`
       INSERT INTO popia_assessments (
-        id, created_at, name, email, company_name, website_url, assessment, scan, hubspot_status, hubspot_contact_id, hubspot_error
+        id, created_at, name, email, company_name, website_url, assessment, scan, hubspot_status, hubspot_contact_id, hubspot_error, email_status, email_id, email_error
       )
       VALUES (
         ${lead.id},
@@ -82,7 +95,10 @@ export async function insertLead(lead: LeadRecord): Promise<LeadRecord> {
         ${JSON.stringify(lead.scan)},
         ${lead.hubspotStatus},
         ${lead.hubspotContactId ?? null},
-        ${lead.hubspotError ?? null}
+        ${lead.hubspotError ?? null},
+        ${lead.emailStatus},
+        ${lead.emailId ?? null},
+        ${lead.emailError ?? null}
       );
     `;
     return lead;
@@ -107,6 +123,7 @@ export async function getLead(id: string): Promise<LeadRecord | null> {
     const rows = await sql<DbLeadRow[]>`
       SELECT
         id, created_at, name, email, company_name, website_url, assessment, scan, hubspot_status, hubspot_contact_id, hubspot_error
+        , email_status, email_id, email_error
       FROM popia_assessments
       WHERE id = ${id}
       LIMIT 1;
@@ -126,7 +143,10 @@ export async function getLead(id: string): Promise<LeadRecord | null> {
       scan: typeof row.scan === "string" ? (JSON.parse(row.scan) as ScanResult) : row.scan,
       hubspotStatus: row.hubspot_status,
       hubspotContactId: row.hubspot_contact_id ?? undefined,
-      hubspotError: row.hubspot_error ?? undefined
+      hubspotError: row.hubspot_error ?? undefined,
+      emailStatus: row.email_status,
+      emailId: row.email_id ?? undefined,
+      emailError: row.email_error ?? undefined
     };
   }
 
@@ -141,6 +161,7 @@ export async function listLeads(limit = 50): Promise<LeadRecord[]> {
     const rows = await sql<DbLeadRow[]>`
       SELECT
         id, created_at, name, email, company_name, website_url, assessment, scan, hubspot_status, hubspot_contact_id, hubspot_error
+        , email_status, email_id, email_error
       FROM popia_assessments
       ORDER BY created_at DESC
       LIMIT ${limit};
@@ -157,7 +178,10 @@ export async function listLeads(limit = 50): Promise<LeadRecord[]> {
       scan: typeof row.scan === "string" ? (JSON.parse(row.scan) as ScanResult) : row.scan,
       hubspotStatus: row.hubspot_status,
       hubspotContactId: row.hubspot_contact_id ?? undefined,
-      hubspotError: row.hubspot_error ?? undefined
+      hubspotError: row.hubspot_error ?? undefined,
+      emailStatus: row.email_status,
+      emailId: row.email_id ?? undefined,
+      emailError: row.email_error ?? undefined
     }));
   }
 
@@ -166,4 +190,44 @@ export async function listLeads(limit = 50): Promise<LeadRecord[]> {
     .slice()
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
+}
+
+export async function updateLeadDelivery(
+  id: string,
+  input: {
+    emailStatus: "not_configured" | "sent" | "failed";
+    emailId?: string;
+    emailError?: string;
+  }
+): Promise<void> {
+  if (isNeonConfigured()) {
+    await ensureNeonSchema();
+    const sql = neonSql();
+    await sql`
+      UPDATE popia_assessments
+      SET
+        email_status = ${input.emailStatus},
+        email_id = ${input.emailId ?? null},
+        email_error = ${input.emailError ?? null}
+      WHERE id = ${id};
+    `;
+    return;
+  }
+
+  await ensureDataFile();
+  writeChain = writeChain.catch(() => undefined).then(async () => {
+    const leads = await readLeads();
+    const index = leads.findIndex((lead) => lead.id === id);
+    if (index === -1) {
+      return;
+    }
+    leads[index] = {
+      ...leads[index],
+      emailStatus: input.emailStatus,
+      emailId: input.emailId,
+      emailError: input.emailError
+    };
+    await writeLeads(leads);
+  });
+  await writeChain;
 }
