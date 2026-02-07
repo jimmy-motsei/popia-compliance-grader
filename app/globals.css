@@ -1,0 +1,90 @@
+:root {
+  --maru-bg: #091422;
+  --maru-surface: #102032;
+  --maru-surface-soft: #13273d;
+  --maru-text: #eff7ff;
+  --maru-text-muted: #9bb7cf;
+  --maru-accent: #00d9ff;
+  --maru-accent-strong: #1fe4ff;
+  --maru-danger: #ff5b6e;
+  --maru-radius: 14px;
+  --maru-shadow: 0 14px 36px rgba(3, 10, 18, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle at 15% 10%, #1a314d 0%, var(--maru-bg) 45%), var(--maru-bg);
+  color: var(--maru-text);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  min-height: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+.container {
+  width: min(1020px, 92vw);
+  margin: 0 auto;
+}
+
+.card {
+  background: linear-gradient(180deg, var(--maru-surface) 0%, var(--maru-surface-soft) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--maru-radius);
+  box-shadow: var(--maru-shadow);
+}
+
+.btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--maru-accent) 0%, var(--maru-accent-strong) 100%);
+  color: #03222a;
+}
+
+.btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(12, 22, 35, 0.6);
+  color: var(--maru-text);
+  padding: 0.82rem 0.92rem;
+}
+
+.input:focus {
+  outline: 2px solid rgba(0, 217, 255, 0.45);
+  border-color: var(--maru-accent);
+}
+
+.muted {
+  color: var(--maru-text-muted);
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 860px) {
+  .grid-2 {
+    grid-template-columns: 1.25fr 1fr;
+  }
+}
